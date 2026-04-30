@@ -1,0 +1,28 @@
+[project]
+name = "pr-probe"
+version = "0.1.0"
+description = "GitHub PR analyzer for templates and approvals"
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [
+    { name = "Afshan Khan", email = "afshankhan@duck.com" }
+]
+license = "MIT"
+keywords = ["github", "pull-requests", "metrics", "audit", "compliance", "tat", "ttr"]
+urls = { "Repository" = "https://github.com/AfshanKhan/pr-probe" }
+dependencies = [
+    "aiofiles>=25.1.0",
+    "httpx>=0.28.1",
+    "pydantic>=2.13.3",
+    "pydantic-settings>=2.14.0",
+    "python-dotenv>=1.2.2",
+    "tabulate>=0.10.0",
+    "openpyxl>=3.1.2",
+]
+
+[project.scripts]
+pr-probe = "pr_probe.main:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
