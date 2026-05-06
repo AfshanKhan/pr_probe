@@ -15,6 +15,7 @@ class PullRequestNode(BaseModel):
     mergedBy: Optional[dict] = None
     body: str
     repository: dict
+    files: Optional[dict] = None
     reviews: dict
 
     @property
@@ -37,6 +38,7 @@ class PRAnalysisResult(BaseModel):
     approved_by: Optional[str] = None
     template_used: bool
     approved_before_merge: bool
+    has_tests: bool
     tat_hours: float
     ttr_hours: Optional[float] = None
 
@@ -44,6 +46,7 @@ class RepoMetrics(BaseModel):
     total_prs: int
     template_usage_count: int
     approved_before_merge_count: int
+    has_tests_count: int
     avg_tat_hours: float
     avg_ttr_hours: Optional[float]
 
@@ -55,10 +58,15 @@ class RepoMetrics(BaseModel):
     def approval_percent(self) -> float:
         return (self.approved_before_merge_count / self.total_prs * 100) if self.total_prs > 0 else 0.0
 
+    @property
+    def has_tests_percent(self) -> float:
+        return (self.has_tests_count / self.total_prs * 100) if self.total_prs > 0 else 0.0
+
 class SummaryMetrics(BaseModel):
     total_prs: int
     template_usage_count: int
     approved_before_merge_count: int
+    has_tests_count: int
     avg_tat_hours: float
     avg_ttr_hours: Optional[float]
     repo_metrics: Optional[dict] = None # Dict[str, RepoMetrics]
@@ -70,3 +78,7 @@ class SummaryMetrics(BaseModel):
     @property
     def approval_percent(self) -> float:
         return (self.approved_before_merge_count / self.total_prs * 100) if self.total_prs > 0 else 0.0
+
+    @property
+    def has_tests_percent(self) -> float:
+        return (self.has_tests_count / self.total_prs * 100) if self.total_prs > 0 else 0.0

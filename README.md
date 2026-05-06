@@ -52,6 +52,7 @@ uv run pr-probe --repos "https://github.com/org/repo1 org/repo2" --output xlsx
 | :--- | :--- | :--- |
 | **TAT** | **Turnaround Time** | Total time from PR creation to merge. High TAT indicates process bottlenecks. |
 | **TTR** | **Time to 1st Review** | Time to the very first comment or approval. Measures team responsiveness. |
+| **Has Tests** | **Test Files Included** | Whether any file containing `test` in its path was modified in the PR. |
 
 *All time-based metrics are reported in a human-readable `Xh:Ym` format (e.g., `2h:30m`).*
 
@@ -69,7 +70,7 @@ reports/
 ```
 
 ### Excel Sheet Breakdown:
-1.  **Detailed Report**: Line-by-line audit of every PR (Author, Merger, Approver, TAT, TTR).
+1.  **Detailed Report**: Line-by-line audit of every PR (Author, Merger, Approver, TAT, TTR, Has Tests).
 2.  **Summary Metrics**: Aggregated averages and compliance percentages, both **Overall** and **Per-Repository**.
 
 ---
@@ -78,7 +79,9 @@ reports/
 
 | Flag | Description |
 | :--- | :--- |
-| `--days <N>` | Look back N days (default: 7). |
+| `--from-date <DD-MM-YYYY>` | Start date for pulling PRs (e.g. 01-04-2026). |
+| `--to-date <DD-MM-YYYY>` | End date for pulling PRs. Defaults to current date. |
+| `--days <N>` | Look back N days (default: 7). Ignored if `--from-date` is provided. |
 | `--output <format>` | Choose `xlsx`, `json`, or `both`. |
 | `--no-cache` | Bypass local cache and fetch fresh data from GitHub. |
 | `--repos "[list]"` | Support URLs, full names, or short names. |

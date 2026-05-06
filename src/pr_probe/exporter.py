@@ -66,6 +66,8 @@ def export_xlsx(results: List[PRAnalysisResult], metrics: SummaryMetrics, filena
         ["Template Usage Percent", f"{metrics.template_usage_percent:.1f}%"],
         ["Approved Before Merge Count", metrics.approved_before_merge_count],
         ["Approval Percent", f"{metrics.approval_percent:.1f}%"],
+        ["Has Tests Count", metrics.has_tests_count],
+        ["Has Tests Percent", f"{metrics.has_tests_percent:.1f}%"],
         ["Average Turnaround Time (TAT)", format_duration(metrics.avg_tat_hours)],
         ["Average Time to 1st Review (TTR)", format_duration(metrics.avg_ttr_hours)]
     ]
@@ -77,7 +79,7 @@ def export_xlsx(results: List[PRAnalysisResult], metrics: SummaryMetrics, filena
     if metrics.repo_metrics:
         ws2.append([])
         ws2.append(["PER-REPOSITORY METRICS", ""])
-        ws2.append(["Repository", "PRs", "Template Usage", "Approved", "Avg TAT", "Avg TTR"])
+        ws2.append(["Repository", "PRs", "Template Usage", "Approved", "Has Tests", "Avg TAT", "Avg TTR"])
         
         # Bold the section header and table headers
         row_idx = ws2.max_row - 1
@@ -93,6 +95,7 @@ def export_xlsx(results: List[PRAnalysisResult], metrics: SummaryMetrics, filena
                 m.total_prs,
                 f"{m.template_usage_count} ({m.template_usage_percent:.1f}%)",
                 f"{m.approved_before_merge_count} ({m.approval_percent:.1f}%)",
+                f"{m.has_tests_count} ({m.has_tests_percent:.1f}%)",
                 format_duration(m.avg_tat_hours),
                 format_duration(m.avg_ttr_hours)
             ])
@@ -112,11 +115,12 @@ def calculate_metrics(results: List[PRAnalysisResult]) -> SummaryMetrics:
     if total == 0:
         return SummaryMetrics(
             total_prs=0, template_usage_count=0, approved_before_merge_count=0,
-            avg_tat_hours=0.0, avg_ttr_hours=0.0, repo_metrics={}
+            has_tests_count=0, avg_tat_hours=0.0, avg_ttr_hours=0.0, repo_metrics={}
         )
         
     template_count = sum(1 for r in results if r.template_used)
     approval_count = sum(1 for r in results if r.approved_before_merge)
+    has_tests_count = sum(1 for r in results if r.has_tests)
     
     # Overall averages
     avg_tat = sum(r.tat_hours for r in results) / total
@@ -135,6 +139,7 @@ def calculate_metrics(results: List[PRAnalysisResult]) -> SummaryMetrics:
         r_total = len(prs)
         r_template = sum(1 for p in prs if p.template_used)
         r_approval = sum(1 for p in prs if p.approved_before_merge)
+        r_has_tests = sum(1 for p in prs if p.has_tests)
         r_avg_tat = sum(p.tat_hours for p in prs) / r_total
         r_ttr_values = [p.ttr_hours for p in prs if p.ttr_hours is not None]
         r_avg_ttr = sum(r_ttr_values) / len(r_ttr_values) if r_ttr_values else 0.0
@@ -143,6 +148,7 @@ def calculate_metrics(results: List[PRAnalysisResult]) -> SummaryMetrics:
             total_prs=r_total,
             template_usage_count=r_template,
             approved_before_merge_count=r_approval,
+            has_tests_count=r_has_tests,
             avg_tat_hours=round(r_avg_tat, 2),
             avg_ttr_hours=round(r_avg_ttr, 2)
         ).model_dump(mode='json')
@@ -151,6 +157,7 @@ def calculate_metrics(results: List[PRAnalysisResult]) -> SummaryMetrics:
         total_prs=total,
         template_usage_count=template_count,
         approved_before_merge_count=approval_count,
+        has_tests_count=has_tests_count,
         avg_tat_hours=round(avg_tat, 2),
         avg_ttr_hours=round(avg_ttr, 2),
         repo_metrics=repo_metrics

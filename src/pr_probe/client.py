@@ -50,30 +50,43 @@ class GitHubClient:
             
         return data["data"]
 
-    async def fetch_merged_prs(self, org: Optional[str], days: int, repos: Optional[List[str]] = None, use_cache: bool = True) -> List[PullRequestNode]:
-        since_date_dt = datetime.now() - timedelta(days=days)
-        since_date_str = since_date_dt.strftime("%Y-%m-%d")
+    async def fetch_merged_prs(self, org: Optional[str], since_date: datetime, until_date: datetime, repos: Optional[List[str]] = None, use_cache: bool = True) -> List[PullRequestNode]:
+        since_date_str = since_date.strftime("%Y-%m-%d")
+        until_date_str = until_date.strftime("%Y-%m-%d")
         
         if not repos and org:
             # Org-wide search is still needed for entire organizations
-            query_str = f"org:{org} is:pr is:merged merged:>={since_date_str}"
+            query_str = f"org:{org} is:pr is:merged merged:>={since_date_str} merged:<={until_date_str}"
             return await self._fetch_via_search(query_str, use_cache)
         
         # For specific repos, direct querying is much more reliable than search
         all_prs = []
+        semaphore = asyncio.Semaphore(5) # Limit concurrency to avoid rate limits
+        
+        async def fetch_repo(owner: str, name: str) -> List[PullRequestNode]:
+            async with semaphore:
+                logger.info(f"Directly probing repository: {owner}/{name}")
+                return await self._fetch_repo_directly(owner, name, since_date, until_date)
+                
+        tasks = []
         for repo_full_name in (repos or []):
             if "/" not in repo_full_name:
                 continue
             
             owner, name = repo_full_name.split("/", 1)
-            logger.info(f"Directly probing repository: {owner}/{name}")
+            tasks.append(fetch_repo(owner, name))
             
-            repo_prs = await self._fetch_repo_directly(owner, name, since_date_dt)
-            all_prs.extend(repo_prs)
+        if tasks:
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for result in results:
+                if isinstance(result, Exception):
+                    logger.error(f"Error during parallel repository fetch: {result}")
+                else:
+                    all_prs.extend(result)
             
         return all_prs
 
-    async def _fetch_repo_directly(self, owner: str, name: str, since_date: datetime) -> List[PullRequestNode]:
+    async def _fetch_repo_directly(self, owner: str, name: str, since_date: datetime, until_date: datetime) -> List[PullRequestNode]:
         graphql_query = """
         query($owner: String!, $name: String!, $cursor: String) {
           repository(owner: $owner, name: $name) {
@@ -93,6 +106,11 @@ class GitHubClient:
                 repository { 
                   name 
                   owner { login }
+                }
+                files(first: 100) {
+                  nodes {
+                    path
+                  }
                 }
                 reviews(first: 100) {
                   nodes {
@@ -133,6 +151,9 @@ class GitHubClient:
                 if merged_at < since_date.replace(tzinfo=merged_at.tzinfo):
                     has_next_page = False
                     break
+                    
+                if merged_at > until_date.replace(tzinfo=merged_at.tzinfo):
+                    continue
                 
                 repo_prs.append(PullRequestNode(**node))
             
@@ -173,6 +194,11 @@ class GitHubClient:
                 repository { 
                   name 
                   owner { login }
+                }
+                files(first: 100) {
+                  nodes {
+                    path
+                  }
                 }
                 reviews(first: 100) {
                   nodes {

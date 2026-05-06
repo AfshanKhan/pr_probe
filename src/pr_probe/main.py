@@ -60,16 +60,32 @@ async def run(args):
             repos = [r for r in parsed if r] # Remove None values
 
         days = args.days or settings.default_days
-        since_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+        
+        # Determine date range
+        until_date_dt = datetime.now()
+        if args.to_date:
+            until_date_dt = datetime.strptime(args.to_date, "%d-%m-%Y")
+            
+        if args.from_date:
+            since_date_dt = datetime.strptime(args.from_date, "%d-%m-%Y")
+        else:
+            since_date_dt = until_date_dt - timedelta(days=days)
+
+        since_date_str = since_date_dt.strftime("%d-%m-%Y")
+        until_date_str = until_date_dt.strftime("%d-%m-%Y")
 
         if not org and not repos:
             logger.error("Either --org or --repos must be provided.")
             sys.exit(1)
 
-        logger.info(f"Analyzing PRs merged since {since_date} (last {days} days)")
+        date_msg = f"since {since_date_str} to {until_date_str}"
+        if not args.from_date and not args.to_date:
+             date_msg += f" (last {days} days)"
+             
+        logger.info(f"Analyzing PRs merged {date_msg}")
         
         # 1. Fetch PRs
-        prs = await client.fetch_merged_prs(org, days, repos, use_cache=not args.no_cache)
+        prs = await client.fetch_merged_prs(org, since_date_dt, until_date_dt, repos, use_cache=not args.no_cache)
         
         if not prs:
             print("\n" + "!"*40)
@@ -126,7 +142,9 @@ def main():
     parser = argparse.ArgumentParser(description="Analyze GitHub PRs for template usage and approvals.")
     parser.add_argument("--org", help="GitHub organization name")
     parser.add_argument("--repos", help="Comma-separated list of repos (short names, owner/repo, or URLs)")
-    parser.add_argument("--days", type=int, help="Number of days to look back (default 7)")
+    parser.add_argument("--days", type=int, help="Number of days to look back (default 7). Ignored if --from-date is used.")
+    parser.add_argument("--from-date", help="Start date in DD-MM-YYYY format (e.g. 01-04-2026)")
+    parser.add_argument("--to-date", help="End date in DD-MM-YYYY format (e.g. 15-04-2026). Defaults to current date if omitted.")
     parser.add_argument("--output", choices=["json", "xlsx", "both"], default="json", help="Output format")
     parser.add_argument("--no-cache", action="store_true", help="Disable local caching")
     

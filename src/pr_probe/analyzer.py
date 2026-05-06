@@ -34,9 +34,23 @@ class PRAnalyzer:
         
         return len(valid_approvals) > 0
 
+    def check_tests(self, pr: PullRequestNode) -> bool:
+        if not pr.files or "nodes" not in pr.files:
+            return False
+            
+        for file_node in pr.files["nodes"]:
+            if not file_node or "path" not in file_node:
+                continue
+            path = file_node["path"].lower()
+            # Only consider files/directories that have 'test' in the name
+            if "test" in path:
+                return True
+        return False
+
     def analyze(self, pr: PullRequestNode) -> PRAnalysisResult:
         template_used = self.check_template(pr.body)
         approved_before_merge = self.check_approval(pr)
+        has_tests = self.check_tests(pr)
         
         # Calculate Turnaround Time (TAT) in hours
         tat_delta = pr.mergedAt - pr.createdAt
@@ -72,6 +86,7 @@ class PRAnalyzer:
             approved_by=approved_by,
             template_used=template_used,
             approved_before_merge=approved_before_merge,
+            has_tests=has_tests,
             tat_hours=round(tat_hours, 2),
             ttr_hours=round(ttr_hours, 2) if ttr_hours is not None else None
         )
